@@ -47,7 +47,16 @@
         ipcRenderer.send('url', url);
         breakLine();
         msg.innerHTML += 'Tracing Route to ' + url;
+        breakLine();
+        msg.innerHTML += 'Printing all identifiable IP Addresses';
     }
+
+    //Catch when new line is written
+    ipcRenderer.on('line', function(e,line){
+        breakLine();
+        msg.innerHTML += line
+        console.log('calling once with '+line)
+    });
 
     //Catch when output is logged
     ipcRenderer.on('ipList', function(e,ipList){
@@ -76,7 +85,7 @@
             latlngs.push(latlng)
         }
         var polyline = L.polyline(latlngs, {color: 'red'}).addTo(myMap)
-        map.fitBounds(polyline.getBounds());
+        myMap.fitBounds(polyline.getBounds());
     });
 
     function breakLine(){

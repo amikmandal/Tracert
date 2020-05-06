@@ -1,7 +1,8 @@
 const electron = require('electron');
 const url = require('url');
 const path = require('path');
-const exec = require('child_process').exec;
+const { spawn } = require('child_process');
+
 const fetch = require("node-fetch")
 
 const {app, BrowserWindow, Menu, ipcMain} = electron;
@@ -30,12 +31,14 @@ app.on('ready', function(){
 
 //Catch url entered
 ipcMain.on('url', function(e,url){
-    execute('tracert -h 255 ' + url, parseOutput);
+    const command = 'tracert'
+    const args = ['-h','255',url]
+    execute(command, args, displayLine, parseOutput);
 });
 
 //parse output from command prompt
 function parseOutput(output){
-    console.log(output)
+    //console.log(output)
     const ipList = makeiplist(output);
     mainWindow.webContents.send('ipList', ipList);
     getGeoLocationData(ipList);
@@ -105,11 +108,50 @@ function isPublicIPv4(match){
         return true
 }
 
+let firstLine = true;
+let entries = 0;
+let line = ''
+let output = ''
+
+function displayLine(data) {
+    if(firstLine){
+        firstLine = false;
+        mainWindow.webContents.send('line', data+'');
+        output += data+''
+        console.log(output);
+    } else {
+        entries++;
+        line += data+'';
+        if(entries==5){
+            mainWindow.webContents.send('line', line)
+            output += line
+            entries = 0;
+            line = ''
+            //console.log('coming here');
+        }
+    }
+}
 
 //run cmd.exe with a given command
-function execute(command, callback) {
-    exec(command, (error, stdout, stderr) => { 
-        callback(stdout); 
+function execute(command, args, lineCallback, finalCallback) {
+    const tracert = spawn(command, args);
+
+    tracert.stdout.on('data', (data) => {
+        lineCallback(data);
+    });
+
+    tracert.stderr.on('data', (data) => {
+        console.error(`stderr: ${data}`);
+    });
+
+    tracert.on('close', (code) => {
+        if(code==0){
+            lineCallback(line);
+            finalCallback(output);
+        }
+        else {
+            console.log(`child process exited with code ${code}`);
+        }
     });
 };
 
