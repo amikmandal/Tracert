@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Tracert</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+    crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+   integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+   crossorigin=""></script>
+   <style>
+       #map {
+           height: 600px;
+       }
+   </style>
+</head>
+<body>
+    <h1>Tracert</h1>
+    <div id="map"></div>
+    <br/>
+    <form id="urlForm">
+        <div>
+            <label>Enter URL </label>
+            <input type="text" id="url" autofocus>
+            <button type="submit"> Trace Route </button>
+        </div>
+    </form>
+    <p id="message">Enter url to trace route to and hit the button to start tracing</p>
+</body>
+<script>
+    const electron = require('electron');
+    const {ipcRenderer} = electron;
+    const leaflet = require('leaflet');
+    
+    const form = document.querySelector('#urlForm');
+    form.addEventListener('submit', submitForm);
+
+    const msg = document.querySelector('#message');
+
+    var myMap = L.map('map').setView([35,0], 2);
+    const tileURL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    L.tileLayer(tileURL, {}).addTo(myMap);
+
+    function submitForm(e){
+        e.preventDefault();
+        const url = document.querySelector('#url').value;
+        ipcRenderer.send('url', url);
+        breakLine();
+        msg.innerHTML += 'Tracing Route to ' + url;
+    }
+
+    //Catch when output is logged
+    ipcRenderer.on('ipList', function(e,ipList){
+        breakLine();
+        msg.innerHTML += ipList.length + ' IPv4 Addresses of identifiable hops found.'
+        for(i=0; i<ipList.length; i++){
+            breakLine();
+            msg.innerHTML += ipList[i]
+        }
+    });
+
+    //Catch when location data is logged
+    ipcRenderer.on('geoLocData', function(e,geoLocData){
+        let len = geoLocData.city.length
+        let latlngs = []
+        for(i=0; i<len; i++){
+            const latlng = [geoLocData.latitude[i], geoLocData.longitude[i]]
+            const marker = L.marker(latlng).addTo(myMap)
+            marker.bindTooltip(geoLocData.city[i])
+            marker.on('mouseover', function (e) {
+                this.openTooltip();
+            });
+            marker.on('mouseout', function (e) {
+                this.closeTooltip();
+            });
+            latlngs.push(latlng)
+        }
+        var polyline = L.polyline(latlngs, {color: 'red'}).addTo(myMap)
+        map.fitBounds(polyline.getBounds());
+    });
+
+    function breakLine(){
+        msg.innerHTML += '<br>'
+    }
+
+</script>
+</html>
