@@ -20,7 +20,7 @@
     <br/>
     <form id="urlForm">
         <div>
-            <label>Enter URL </label>
+            <label>Enter IPv4/Domain </label>
             <input type="text" id="url" autofocus>
             <button type="submit"> Trace Route </button>
         </div>
@@ -31,6 +31,9 @@
     const electron = require('electron');
     const {ipcRenderer} = electron;
     const leaflet = require('leaflet');
+
+    let points = []
+    let polyline = null
     
     const form = document.querySelector('#urlForm');
     form.addEventListener('submit', submitForm);
@@ -46,45 +49,39 @@
         const url = document.querySelector('#url').value;
         ipcRenderer.send('url', url);
         breakLine();
-        msg.innerHTML += 'Tracing Route to ' + url;
         breakLine();
-        msg.innerHTML += 'Printing all identifiable IP Addresses';
+        msg.innerHTML += 'Tracing route to ' + url;
+        breakLine();
+        msg.innerHTML += 'Printing out identifiable IP addresses:'
+        breakLine();
     }
 
-    //Catch when new line is written
-    ipcRenderer.on('line', function(e,line){
-        breakLine();
-        msg.innerHTML += line
-        console.log('calling once with '+line)
-    });
-
     //Catch when output is logged
-    ipcRenderer.on('ipList', function(e,ipList){
+    ipcRenderer.on('ip', function(e,ip){
+        msg.innerHTML += ip;
         breakLine();
-        msg.innerHTML += ipList.length + ' IPv4 Addresses of identifiable hops found.'
-        for(i=0; i<ipList.length; i++){
-            breakLine();
-            msg.innerHTML += ipList[i]
-        }
+        //msg.innerHTML += ipList.length + ' IPv4 Addresses of identifiable hops found.'
     });
 
     //Catch when location data is logged
     ipcRenderer.on('geoLocData', function(e,geoLocData){
-        let len = geoLocData.city.length
-        let latlngs = []
-        for(i=0; i<len; i++){
-            const latlng = [geoLocData.latitude[i], geoLocData.longitude[i]]
-            const marker = L.marker(latlng).addTo(myMap)
-            marker.bindTooltip(geoLocData.city[i])
-            marker.on('mouseover', function (e) {
-                this.openTooltip();
-            });
-            marker.on('mouseout', function (e) {
-                this.closeTooltip();
-            });
-            latlngs.push(latlng)
-        }
-        var polyline = L.polyline(latlngs, {color: 'red'}).addTo(myMap)
+        console.log(geoLocData.latitude, geoLocData.longitude);
+        const latlng = [geoLocData.latitude, geoLocData.longitude]
+        const marker = L.marker(latlng).addTo(myMap)
+        marker.bindTooltip(geoLocData.city)
+        marker.on('mouseover', function (e) {
+            this.openTooltip();
+        });
+        marker.on('mouseout', function (e) {
+            this.closeTooltip();
+        });
+        points.push(latlng);
+        if (points.length > 2)
+            points.shift()
+        if(polyline == null)
+            polyline = L.polyline(points, {color: 'red'}).addTo(myMap)
+        else
+            polyline.addLatLng([latlng[0],latlng[1]]);
         myMap.fitBounds(polyline.getBounds());
     });
 

@@ -33,37 +33,40 @@ app.on('ready', function(){
 ipcMain.on('url', function(e,url){
     const command = 'tracert'
     const args = ['-h','255',url]
-    execute(command, args, displayLine, parseOutput);
+    execute(command, args, parseIP);
 });
 
 //parse output from command prompt
-function parseOutput(output){
-    //console.log(output)
-    const ipList = makeiplist(output);
-    mainWindow.webContents.send('ipList', ipList);
-    getGeoLocationData(ipList);
-    
+async function parseIP(data){
+    const ip = findIP(data);
+    if(ip == null)
+        return;
+    const geoLocData = await getGeoLocationData(ip);
+    if(geoLocData == null)
+        return;
+
+    //console.log(geoLocData.latitude,geoLocData.longitude);
+
+    mainWindow.webContents.send('ip', ip);
+    mainWindow.webContents.send('geoLocData', geoLocData);
 }
 
-async function getGeoLocationData(ipList){
+async function getGeoLocationData(ip){
     const ACCESS_KEY = '001abf6bf4e9cdfb870012aa573a2e80';
     const baseURL = 'http://api.ipstack.com/'
 
-    geoLocData = {city: [], latitude: [], longitude: []}
-    for(i=0; i<ipList.length; i++){
-        const hitURL = baseURL + ipList[i] + '?access_key=' + ACCESS_KEY + '&fields=city,latitude,longitude'
-        const res = await fetch(hitURL).catch(handleFetchError)
-        const data = await res.json()
-        if(data.city==null || data.latitude == null || data.longitude == null)
-            continue;
-        geoLocData.city.push(data.city);
-        geoLocData.latitude.push(data.latitude);
-        geoLocData.longitude.push(data.longitude);
-        //console.log(geoLocData.city[i],geoLocData.latitude[i],geoLocData.longitude[i])
-    }
-
-    await mainWindow.webContents.send('geoLocData', geoLocData);
-    
+    const geoLocData = {city: '', latitude: '', longitude: ''}
+    const hitURL = baseURL + ip + '?access_key=' + ACCESS_KEY + '&fields=city,latitude,longitude'
+    //console.log(hitURL);
+    const res = await fetch(hitURL).catch(handleFetchError)
+    const data = await res.json()
+    if(data.city==null || data.latitude == null || data.longitude == null)
+        return null;
+    geoLocData.city = await data.city;
+    geoLocData.latitude = await data.latitude;
+    geoLocData.longitude = await data.longitude;
+    console.log(data.city);
+    return geoLocData;
 }
 
 function handleFetchError(err){
@@ -75,23 +78,23 @@ function handleFetchError(err){
 }
 
 //Create list of ip
-function makeiplist(output){
-    const splitString = 'over a maximum of 255 hops';
-    const splitIndex = output.indexOf(splitString) + splitString.length;
-    const searchString = output.substring(splitIndex);
-
-    //regexp to match ipv4 address
-    const regExp = /(?<=\s|\[)(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?=\s|\])/g;
-    const ipMatches = [...searchString.matchAll(regExp)];
-    let ipList = [];
-    for(i=0; i<ipMatches.length; i++){
-        const match = ipMatches[i] 
-        if(isPublicIPv4(match)){
-            //console.log("true " + i)
-            ipList.push(match[0]);
-        }
-    }
-    return ipList
+function findIP(data){
+    const flagString = 'over a maximum of 255 hops';
+    if(data.indexOf(flagString)!=-1)
+        return null;
+    data = data.toString();
+    console.log(data);
+    //regexp to match a single ipv4 address from line
+    const regExp = /(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?=\s|\])/g;
+    const ipMatches = [...data.matchAll(regExp)];
+    if(ipMatches == null || ipMatches.length==0)
+        return null;
+    const ip = ipMatches[0][0];
+    console.log('IP found:', ip);
+    if(isPublicIPv4(ip))
+        return ip;
+    else
+        return null;
 }
 
 //verify its a public ipv4 address
@@ -108,50 +111,26 @@ function isPublicIPv4(match){
         return true
 }
 
-let firstLine = true;
-let entries = 0;
-let line = ''
-let output = ''
-
-function displayLine(data) {
-    if(firstLine){
-        firstLine = false;
-        mainWindow.webContents.send('line', data+'');
-        output += data+''
-        console.log(output);
-    } else {
-        entries++;
-        line += data+'';
-        if(entries==5){
-            mainWindow.webContents.send('line', line)
-            output += line
-            entries = 0;
-            line = ''
-            //console.log('coming here');
-        }
-    }
-}
-
 //run cmd.exe with a given command
-function execute(command, args, lineCallback, finalCallback) {
+//processData is my callback
+function execute(command, args, processData) {
     const tracert = spawn(command, args);
 
     tracert.stdout.on('data', (data) => {
-        lineCallback(data);
+        processData(data);
     });
 
     tracert.stderr.on('data', (data) => {
+        mainWindow.webContents.send('fail','<br><br> Failed to trace. Please try again later or try a different domain!');
         console.error(`stderr: ${data}`);
     });
 
     tracert.on('close', (code) => {
-        if(code==0){
-            lineCallback(line);
-            finalCallback(output);
-        }
-        else {
-            console.log(`child process exited with code ${code}`);
-        }
+        if(code == 0)
+            mainWindow.webContents.send('success','<br><br> Trace Completed. Enjoy!')
+        else
+            mainWindow.webContents.send('fail','<br><br> Failed to trace. Please try again later or try a different domain!');
+        console.log(`child process exited with code ${code}`);
     });
 };
 
