@@ -3,6 +3,7 @@ function engine(mainWindow) {
     const electron = require('electron');
     const {ipcMain} = electron;
 
+
     const getGeoLocData = require('./ipstack.js');
 
     //Catch url entered
@@ -22,15 +23,15 @@ function engine(mainWindow) {
         });
 
         shell.stderr.on('data', (data) => {
-            mainWindow.webContents.send('fail','<br><br> Failed to trace. Please try again later or try a different domain!');
+            mainWindow.webContents.send('fail','Failed to trace. Please try again later or try a different domain!');
             console.error(`stderr: ${data}`);
         });
 
         shell.on('close', (code) => {
             if(code == 0)
-                mainWindow.webContents.send('success','<br><br> Trace Completed. Enjoy!')
+                mainWindow.webContents.send('success','Trace Completed. Enjoy!')
             else
-                mainWindow.webContents.send('fail','<br><br> Failed to trace. Please try again later or try a different domain!');
+                mainWindow.webContents.send('fail','Failed to trace. Please try again later or try a different domain!');
             console.log(`child process exited with code ${code}`);
         });
     };
@@ -47,7 +48,7 @@ function engine(mainWindow) {
         //console.log(geoLocData.latitude,geoLocData.longitude);
 
         //render data to the page
-        mainWindow.webContents.send('ip', ip);
+        mainWindow.webContents.send('ip', ip + ' (' + geoLocData.city + ')');
         mainWindow.webContents.send('geoLocData', geoLocData);
     }
 
