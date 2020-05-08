@@ -3,13 +3,14 @@ function engine(mainWindow) {
     const electron = require('electron');
     const {ipcMain} = electron;
 
+    const hops = '63'; //max hops to trace.
 
     const getGeoLocData = require('./ipstack.js');
 
     //Catch url entered
     ipcMain.on('url', function(e,url){
         const command = 'tracert'
-        const args = ['-h','255',url]
+        const args = ['-h',hops,url]
         execute(command, args, parseIP);
     });
 
@@ -54,7 +55,7 @@ function engine(mainWindow) {
 
     //Create list of ip
     function findIP(data){
-        const flagString = 'over a maximum of 255 hops';
+        const flagString = 'over a maximum of ' + hops + ' hops';
         if(data.indexOf(flagString)!=-1)
             return null;
         data = data.toString();

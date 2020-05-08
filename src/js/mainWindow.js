@@ -1,7 +1,9 @@
 const electron = require('electron');
 const publicIp = require('public-ip');
 const {ipcRenderer} = electron;
+
 import Map from './map.js'
+
 var map = new Map()
 
 const form = document.querySelector('#urlForm');
@@ -10,7 +12,12 @@ form.addEventListener('submit', submitForm);
 const msg = document.querySelector('#message');
 const finalMsg = document.querySelector('#finalMessage');
 
-var Lmap = map.createMap(35,0,13);
+// publicIp.v4()
+//     .then((userIP) => console.log(userIP));
+//const ipData = getGeoLocData();
+
+var Lmap = map.createMap(35,0,2);
+//var Lmap = map.createMap(ipData.latitude,ipData.longitude,10);
 
 function submitForm(e){
     e.preventDefault();
