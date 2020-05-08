@@ -7,10 +7,11 @@ import Map from './map.js'
 var map = new Map()
 
 const form = document.querySelector('#urlForm');
-form.addEventListener('submit', submitForm);
-
 const msg = document.querySelector('#message');
 const finalMsg = document.querySelector('#finalMessage');
+const button = document.querySelector('#button')
+
+form.addEventListener('submit', submitForm);
 
 // publicIp.v4()
 //     .then((userIP) => console.log(userIP));
@@ -21,6 +22,7 @@ var Lmap = map.createMap(35,0,2);
 
 function submitForm(e){
     e.preventDefault();
+    button.disabled = true;
     const url = document.querySelector('#url').value;
     ipcRenderer.send('url', url);
     breakLine();
