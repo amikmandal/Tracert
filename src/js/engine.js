@@ -57,15 +57,17 @@ function engine(mainWindow) {
         if(data.indexOf(flagString)!=-1)
             return null;
         data = data.toString();
-        console.log(data);
+        //console.log(data);
         //regexp to match a single ipv4 address from line
         const regExp = /(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?=\s|\])/g;
         const ipMatches = [...data.matchAll(regExp)];
         if(ipMatches == null || ipMatches.length==0)
             return null;
-        const ip = ipMatches[0][0];
+        //pick first match (usually should be one)
+        const ipMatch = ipMatches[0];
+        const ip = ipMatch[0]
         console.log('IP found:', ip);
-        if(isPublicIPv4(ip))
+        if(isPublicIPv4(ipMatch))
             return ip;
         else
             return null;
