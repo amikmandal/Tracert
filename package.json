@@ -15,7 +15,7 @@
   "author": "Amik Mandal",
   "license": "MIT",
   "dependencies": {
-    "electron": "^8.2.5",
+    "electron": "^11.5.0",
     "electron-packager": "^14.2.1",
     "leaflet": "^1.6.0",
     "node-fetch": "^2.6.0",
